@@ -23,25 +23,43 @@ import os.path
 import runpy
 import maya.cmds
 
-location = os.path.dirname(sys.argv[1])
-lastmod = os.path.getmtime(location)
-zipfolder = maya.cmds.about(pd=True) + "/.keystone" 
-zipname = zipfolder + "/" + os.path.basename(sys.argv[1]) + ".zip"
-print "zipname", zipname
-if not (os.path.exists (zipname)) or os.path.getmtime(zipname) < lastmod:
-    if not os.path.exists(zipfolder):
-        os.makedirs(os.path.dirname(zipfolder))
-    with open(sys.argv[1], 'rb') as melfile:
-        melfile.seek(__keystone_offset)
-        with open(zipname, "wb") as output:
-            contents = melfile.read(40960)
-            while contents:
-                output.write(contents)
-                contents = melfile.read(40960)
-sys.path.insert(0, zipname)
-if __keystone_main:
-    runpy.run_path(zipname)
+try:
+    melfile = os.path.abspath(sys.argv[1])
+    lastmod = os.path.getmtime(melfile)
+    zipfolder = maya.cmds.about(pd=True) + "/.keystone"
+    zipname = zipfolder + "/" + os.path.basename(sys.argv[1]) + ".zip"
+    
+    print "// starting keystone launcher"
 
+    should_update = not os.path.exists(zipname)
+    if not should_update:
+        should_update = os.path.getmtime(zipname) < lastmod
+
+    if should_update:
+        if not os.path.exists(zipfolder):
+            os.makedirs(zipfolder)
+            print "// created keystone directory"
+        with open(melfile, 'rb') as binary_blob:
+            print "// extracting environment from ", melfile
+            binary_blob.seek(__keystone_offset)
+            with open(zipname, "wb") as output:
+                print "//  copy to ", zipname
+                contents = binary_blob.read(40960)
+                while contents:
+                    output.write(contents)
+                    contents = binary_blob.read(40960)
+    
+    sys.path.insert(0, zipname)
+    print "// path inserted"
+    
+    if __keystone_main:
+        print "// launch startup"
+        runpy.run_path(zipname)
+
+except Exception:
+    import traceback
+    print traceback.format_exc()
+    cmds.error("Keystone boostrap failed")
 '''
 
 MEL_SHIM = '''// keystone
@@ -105,7 +123,8 @@ def generate_mel(melname, folder):
 
     os.remove(zipped)
 
-desc ='''
+
+desc = '''
 Compiles a python project into an executable mel file.  If the project folder
 contains a __main__.py at the root level, it will be executed when the mel is launched. Any
 python modules in the project folder will be added to maya's python path.
@@ -116,7 +135,7 @@ if __name__ == '__main__':
     parser.add_argument('project', action='store', help="path to the project folder")
 
     args = parser.parse_args()
-    
+
     melfile = os.path.abspath(os.path.normpath(args.melfile))
     if not melfile.endswith(".mel"):
         melfile += ".mel"
