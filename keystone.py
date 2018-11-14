@@ -15,20 +15,20 @@ import re
 import compileall
 import argparse
 
-
 PY_SHIM = '''
 import sys
 import os
 import os.path
 import runpy
 import maya.cmds
+import traceback
 
 try:
-    melfile = os.path.abspath(sys.argv[1])
+    melfile = __keystone_file
     lastmod = os.path.getmtime(melfile)
-    zipfolder = maya.cmds.about(pd=True) + "/.keystone"
-    zipname = zipfolder + "/" + os.path.basename(sys.argv[1]) + ".zip"
-    
+    zipfolder = maya.cmds.about(pd=True) + "/keystones"
+    zipname = zipfolder + "/" + os.path.basename(melfile) + ".zip"
+
     print "// starting keystone launcher"
 
     should_update = not os.path.exists(zipname)
@@ -51,19 +51,32 @@ try:
     
     sys.path.insert(0, zipname)
     print "// path inserted"
-    
+
+    # restore missing sys.argv on OSX
+    if not melfile in sys.argv:
+        args = sys.argv[:]
+        args.insert(1, melfile)
+        sys.argv = args
+        print "// sys.argv: ", sys.argv
+
     if __keystone_main:
         print "// launch startup"
         runpy.run_path(zipname)
 
 except Exception:
-    import traceback
     print traceback.format_exc()
-    cmds.error("Keystone boostrap failed")
+    maya.cmds.error("Keystone boostrap failed")
 '''
 
 MEL_SHIM = '''// keystone
-python("__keystone_offset = %s; __keystone_main = %i");
+global proc keystone_fileid()
+{
+    string $tokens[];
+    tokenize(`whatIs keystone_fileid`, " ", $tokens);
+    python("__keystone_file = r'" + $tokens[4] + "'");
+};
+keystone_fileid();
+python("__keystone_offset = %s; __keystone_main = %i; __keystone_version = 2");
 python("import base64; __keystone_cmd = base64.urlsafe_b64decode('%s'); exec __keystone_cmd");
 '''
 
@@ -104,24 +117,24 @@ def zip_directory(source, zipfilename, ignore=None, include=None):
     return zipfilename
 
 
-def generate_mel(melname, folder):
+def generate_mel(melname, folder, ):
+    try:
+        zipped = zip_directory(folder, 'keystone_temp.zip')
+        encoded = base64.urlsafe_b64encode(PY_SHIM)
+        has_main = os.path.exists(folder + "/__main__.py")
+        mel_text = MEL_SHIM % ("%s", has_main, encoded)
+        offset = len(mel_text) + 3  # get pass the
+        offset += len(str(offset))
+        mel_text = mel_text % str(offset)
+        with open(melname, 'wt') as output:
+            output.write(mel_text)
+            output.write('//')
 
-    zipped = zip_directory(folder, 'keystone_temp.zip')
-    encoded = base64.urlsafe_b64encode(PY_SHIM)
-    has_main = os.path.exists(folder + "/__main__.py")
-    mel_text = MEL_SHIM % ("%s", has_main, encoded)
-    offset = len(mel_text) + 3  # get pass the
-    offset += len(str(offset))
-    mel_text = mel_text % str(offset)
-    with open(melname, 'wt') as output:
-        output.write(mel_text)
-        output.write('//')
-
-    with open(zipped, 'rb') as zipper:
-        with open(melname, 'ab') as mel:
-            mel.write(zipper.read())
-
-    os.remove(zipped)
+        with open(zipped, 'rb') as zipper:
+            with open(melname, 'ab') as mel:
+                mel.write(zipper.read())
+    finally:
+        os.remove(zipped)
 
 
 desc = '''
@@ -131,8 +144,8 @@ python modules in the project folder will be added to maya's python path.
 '''
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument('melfile', action='store', help="path to the output mel file")
-    parser.add_argument('project', action='store', help="path to the project folder")
+    parser.add_argument('melfile', help="path to the output mel file")
+    parser.add_argument('project', help="path to the project folder")
 
     args = parser.parse_args()
 
