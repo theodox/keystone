@@ -48,7 +48,7 @@ try:
                 while contents:
                     output.write(contents)
                     contents = binary_blob.read(40960)
-    
+
     sys.path.insert(0, zipname)
     print "// path inserted"
 
@@ -137,16 +137,29 @@ def generate_mel(melname, folder, ):
         os.remove(zipped)
 
 
+def python_to_mel(melfile, pythonfile):
+    """
+    compile a single python file to an executable mel file
+    """
+    with open(pythonfile, 'rt') as reader:
+        py_code = reader.read()
+    encoded = base64.urlsafe_b64encode(py_code)
+    py_to_mel = "import base64; _py_code = base64.urlsafe_b64decode('%s'); exec _py_code" % encoded
+    with open(melfile, 'wt') as writer:
+        writer.write('python("%s");' % py_to_mel)
+
+
 desc = '''
 Compiles a python project into an executable mel file.  If the project folder
 contains a __main__.py at the root level, it will be executed when the mel is launched. Any
 python modules in the project folder will be added to maya's python path.
 '''
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('melfile', help="path to the output mel file")
-    parser.add_argument('project', help="path to the project folder")
-
+    parser.add_argument('project', help="path to the project folder or script")
+    parser.add_argument('--script', help='if true, compile a single python file instead of a folder', action='store_true')
     args = parser.parse_args()
 
     melfile = os.path.abspath(os.path.normpath(args.melfile))
@@ -154,7 +167,14 @@ if __name__ == '__main__':
         melfile += ".mel"
     project = os.path.abspath(os.path.normpath(args.project))
 
-    if not os.path.isdir(project):
-        raise ValueError("'%s' is not a directory" % project)
+    if args.script:
+        if not os.path.exists(project):
+            raise ValueError("'%s' is not a valid file" % project)
 
-    generate_mel(melfile, project)
+        python_to_mel(melfile, project)
+
+    else:
+        if not os.path.isdir(project):
+            raise ValueError("'%s' is not a directory" % project)
+
+        generate_mel(melfile, project)
