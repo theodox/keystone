@@ -14,6 +14,7 @@ import zipfile
 import re
 import compileall
 import argparse
+import io
 
 PY_SHIM = '''
 import sys
@@ -126,9 +127,11 @@ def generate_mel(melname, folder, ):
         offset = len(mel_text) + 3  # get pass the
         offset += len(str(offset))
         mel_text = mel_text % str(offset)
-        with open(melname, 'wt') as output:
-            output.write(mel_text)
-            output.write('//')
+        # this slightly unusual write method ensures that
+        # the offset values are identical on all platforms
+        with io.open(melname, 'w', newline='\r\n') as output:
+            output.write(unicode(mel_text))
+            output.write(u'//')
 
         with open(zipped, 'rb') as zipper:
             with open(melname, 'ab') as mel:
