@@ -27,6 +27,26 @@ The MEL file’s startup code adds the zip to the Python path, launches Maya wit
 
 The upshot of all this is, hopefully, a complete Maya Python environment in a single file — as many modules and scripts as you need, but without the need for tools in other languages to get it plugged into a given Maya session. It’s MEL and Python, so it’s cross-platform (no need to translate .BATS into shell scripts for OSX or Linux). You can distribute this file through Perforce or a download link or simply by emailing it to one contractor; no matter how that file lands on their desk it should give them a complete environment. If you need to give them an update you simply replace that one file and the rest follows naturally.
 
+## Compiling a python environment for keystone
+See `keystone.py` for the details, but essentially it's this:
+
+```
+usage: keystone.py [-h] [--script] melfile project
+
+Compiles a python project into an executable mel file. If the project folder
+contains a __main__.py at the root level, it will be executed when the mel is
+launched. Any python modules in the project folder will be added to maya's
+python path.
+
+positional arguments:
+  melfile     path to the output mel file
+  project     path to the project folder or script
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --script    if true, compile a single python file instead of a folder
+```
+
 ## Launching a keystone environment
 These are equivalent:
 
