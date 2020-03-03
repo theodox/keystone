@@ -27,6 +27,15 @@ The MEL file’s startup code adds the zip to the Python path, launches Maya wit
 
 The upshot of all this is, hopefully, a complete Maya Python environment in a single file — as many modules and scripts as you need, but without the need for tools in other languages to get it plugged into a given Maya session. It’s MEL and Python, so it’s cross-platform (no need to translate .BATS into shell scripts for OSX or Linux). You can distribute this file through Perforce or a download link or simply by emailing it to one contractor; no matter how that file lands on their desk it should give them a complete environment. If you need to give them an update you simply replace that one file and the rest follows naturally.
 
+## Launching a keystone environment
+These are equivalent:
+
+1. double-click the mel file (assuming your mel files are associated with maya)
+2. `path\to\maya.exe` `path\to\keystone.py.mel`
+3. `path\to\maya.exe -script path\to\keystone.py.mel`
+
+Note that if you use the `-script` flag you have to pass an absolute path to the file.  
+
 ## Future work
 
 Of course, all tech involves tradeoffs and I’m still trying to learn what the tradeoffs in this approach will be. The most obvious issue is that there’s the data in the zip portion of the package ends up getting duplicated. My work toolkit zips up about 25 mb, so the overhead is far from trememndous, but it would be nicer if there were a good way around that. 
